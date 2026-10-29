@@ -1,0 +1,11 @@
+{
+  "name": "shutdown-command",
+  "owner": { "name": "Dominic Higgins" },
+  "plugins": [
+    {
+      "name": "shutdown",
+      "source": "./",
+      "description": "End your working day in one command: saves your work, writes tomorrow's list and pauses Claude Code until morning."
+    }
+  ]
+}

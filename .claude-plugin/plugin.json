@@ -1,0 +1,6 @@
+{
+  "name": "shutdown",
+  "description": "End your working day in one command: saves your work, writes tomorrow's list and pauses Claude Code until morning.",
+  "version": "0.1.0",
+  "license": "MIT"
+}
