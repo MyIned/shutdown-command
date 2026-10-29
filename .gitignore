@@ -21,3 +21,7 @@ Thumbs.db
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Scratch demo repo and Office lock files
+scratch/
+~$*
