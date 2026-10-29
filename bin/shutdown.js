@@ -150,9 +150,9 @@ function shutdown(args) {
   fs.writeFileSync(pausePath(), JSON.stringify({ until: until.getTime(), message, repo: root, base: saved.base, wip: saved.wip, tomorrow }, null, 2));
 
   const lines = [];
-  if (saved.wip) lines.push(`Your work is saved (WIP commit ${saved.wip.slice(0, 7)}, not pushed).`);
-  else if (root) lines.push('Nothing to save; your work was already committed.');
-  else lines.push('This folder is not a git repo, so nothing was committed.');
+  if (saved.wip) lines.push(`Your work is saved on this computer (commit ${saved.wip.slice(0, 7)}). Nothing more is needed tonight.`);
+  else if (root) lines.push('Your work was already saved. Nothing more is needed tonight.');
+  else lines.push('This folder is not a git repo, so your files were left exactly as they are.');
   lines.push(`Tomorrow's list is in ${tomorrow}`, message);
   console.log(lines.join('\n'));
 }
@@ -171,15 +171,24 @@ function activePause() {
 const MORNING_PROMPT = /^\s*\/(?:[\w-]+:)?morning\b/;
 const MORNING_COMMAND = /shutdown\.js["']?\s+morning\b/;
 
-// Reads a Claude Code hook event on stdin and, while paused, refuses it with one kind line.
+// Reads a Claude Code hook event on stdin. While paused, refuses it with one kind line.
+// On the first prompt after the pause has run out, does the morning step for you,
+// so nobody has to remember /morning: the work is restored and Claude is given the list.
 function hook() {
-  const pause = activePause();
-  if (!pause) return;
   let event;
   try {
     event = JSON.parse(fs.readFileSync(0, 'utf8'));
   } catch {
     return; // unreadable event: let it through rather than block
+  }
+  const pause = activePause();
+  if (!pause) {
+    if (event.hook_event_name === 'UserPromptSubmit' && readPause() && !MORNING_PROMPT.test(event.prompt || '')) {
+      const { list } = restore();
+      const context = `The user's working day has started. This is where they left off yesterday:\n\n${list}`;
+      console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: context } }));
+    }
+    return;
   }
   const { message } = pause;
   if (event.hook_event_name === 'UserPromptSubmit' && !MORNING_PROMPT.test(event.prompt || '')) {
@@ -191,25 +200,31 @@ function hook() {
   }
 }
 
-// Lifts the pause (early is fine), puts the saved work back as it was and shows tomorrow's list.
-function morning() {
-  let pause = null;
-  try {
-    pause = JSON.parse(fs.readFileSync(pausePath(), 'utf8'));
-  } catch {
-    // no pause: still show the list below
-  }
-  if (pause?.wip) {
+// Lifts the pause, puts the saved work back as it was and returns tomorrow's list.
+// If new commits were made on top of the WIP commit, it is left in place (the work is safe either way).
+function restore() {
+  const pause = readPause();
+  let kept = null;
+  if (pause?.wip && pause.base) {
     try {
-      if (git(pause.repo, 'rev-parse', 'HEAD').trim() === pause.wip) git(pause.repo, 'reset', '-q', 'HEAD~1');
+      if (head(pause.repo) === pause.wip) git(pause.repo, 'reset', '-q', pause.base);
+      else kept = pause.wip.slice(0, 7);
     } catch {
-      // leave the WIP commit in place; the work is safe either way
+      kept = pause.wip.slice(0, 7);
     }
   }
   fs.rmSync(pausePath(), { force: true });
-  const list = pause?.tomorrow || path.join(process.cwd(), 'tomorrow.md');
-  console.log('Good morning.\n');
-  console.log(fs.existsSync(list) ? fs.readFileSync(list, 'utf8') : 'No list from yesterday. Start fresh.');
+  const file = pause?.tomorrow || path.join(process.cwd(), 'tomorrow.md');
+  const list = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : 'No list from yesterday. Start fresh.';
+  return { kept, list };
+}
+
+// /morning: lifts the pause early (that's fine) and shows the list.
+function morning() {
+  const { kept, list } = restore();
+  console.log('Good morning.');
+  if (kept) console.log(`Your saved work stayed in commit ${kept}, because new commits were made after it.`);
+  console.log(`\n${list}`);
 }
 
 function main() {

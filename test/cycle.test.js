@@ -99,11 +99,16 @@ test('/morning lifts the pause, restores the work and shows tomorrow.md', () => 
   assert.equal(hook(tool('Edit', {})), null);
 });
 
-test('the pause lifts itself at the morning time', () => {
+test('the pause lifts itself, and the first prompt of the morning restores the work', () => {
   run(['shutdown', '--until', '08:00']);
   assert.equal(hook(prompt('hello'), '2026-10-29T23:00:00').decision, 'block');
-  assert.equal(hook(prompt('hello'), NEXT_MORNING), null);
   assert.equal(hook(tool('Edit', {}), NEXT_MORNING), null);
+  const first = hook(prompt('hello'), NEXT_MORNING);
+  assert.match(first.hookSpecificOutput.additionalContext, /where they left off[\s\S]*reminders\.js/);
+  assert.deepEqual(status(), dirtyBefore, 'work restored without running /morning');
+  assert.equal(commitCount(), commitsBefore);
+  assert.ok(!fs.existsSync(path.join(home, 'pause.json')));
+  assert.equal(hook(prompt('next prompt'), NEXT_MORNING), null, 'only the first prompt gets the list');
 });
 
 test('a folder that is not a git repo still gets tomorrow.md and a pause', () => {
@@ -130,11 +135,12 @@ test('shutting down twice still lets /morning restore everything', () => {
   const count = () => Number(git(twice, 'rev-list', '--count', 'HEAD').trim());
   const before = count();
   run(['shutdown', '--until', '08:00'], { cwd: twice });
+  fs.writeFileSync(path.join(twice, 'later.txt'), 'one more change before bed');
   run(['shutdown', '--until', '08:00'], { cwd: twice });
   assert.match(fs.readFileSync(path.join(twice, 'tomorrow.md'), 'utf8'), /reminders\.js/, 'list survives the second run');
   run(['morning'], { cwd: twice });
   assert.equal(count(), before);
-  assert.equal(git(twice, 'status', '--porcelain').split('\n').filter(Boolean).length, 2);
+  assert.equal(git(twice, 'status', '--porcelain').split('\n').filter(Boolean).length, 3, 'both rounds of work restored');
 });
 
 test('a hook that cannot read its event lets it through', () => {
@@ -149,7 +155,7 @@ test('a Friday shutdown keeps the weekend free and lifts on Monday', () => {
   const r = run(['shutdown'], { cwd: friday, now: '2026-10-30T17:30:00' });
   assert.match(r.stdout, /You shut down for the weekend\. Back on Monday at 08:00\./);
   assert.match(hook(prompt('quick fix'), '2026-11-01T10:00:00').reason, /Back on Monday at 08:00/);
-  assert.equal(hook(prompt('good morning'), '2026-11-02T08:01:00'), null);
+  assert.ok(hook(prompt('good morning'), '2026-11-02T08:01:00').hookSpecificOutput.additionalContext);
 });
 
 test('next steps and blocked items from Claude end up in tomorrow.md (max 3 steps)', () => {

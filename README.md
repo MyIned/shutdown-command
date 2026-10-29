@@ -16,7 +16,7 @@ Someone who uses Claude Code daily to get real work done and has no clear stoppi
 - **Ends the day in one command.** No tidying up, no remembering what to save.
 - **Stops the evening creep.** Once you've shut down, Claude Code politely declines new requests until morning, so there's nothing to keep checking.
 - **Keeps the weekend free.** Shut down on a Friday and the pause runs until Monday morning.
-- **Starts tomorrow in seconds.** `/shutdown:morning` puts everything back exactly as you left it and shows your list.
+- **Starts tomorrow in seconds, with nothing to remember.** Your first message in the morning puts everything back exactly as you left it, and Claude already knows where you left off, so you don't re-explain yesterday.
 - **Adds nothing.** No reminders, no alerts, no timers, no scores, no questions. The refusal is one kind line, and you can always get out of it.
 
 ## How it follows the brief's one rule
@@ -32,6 +32,12 @@ The brief's one rule is that a build has to give people time back, not help them
 | Morning | A dashboard or stats about yesterday | Your files back as you left them, plus the short list. Nothing else |
 
 Things we deliberately didn't build: automatic shutdown at a set time, "hours worked" stats, streaks, reminders.
+
+## In plain words
+- **What gets saved:** the files in the folder you're working in, using git (a tool that keeps versions of files). If the folder doesn't use git, nothing is changed.
+- **Where:** only on your computer. Shutdown itself never uploads, pushes or sends anything.
+- **What stops:** Claude Code, in every project, until the morning time. Your computer and your other apps work as normal.
+- **How to undo it:** type `/shutdown:morning` at any time.
 
 ## Quick start
 You need [Claude Code](https://claude.com/claude-code) (2.1.275 or later) and Node 18+. Git is used if the folder is a git repo; it's optional.
@@ -60,12 +66,14 @@ Next morning:
 
    > You shut down for the day. Back at 08:00.
 
-At the morning time the pause lifts by itself. `/shutdown:morning` lifts it early with no questions, undoes the WIP commit so your files are exactly as you left them, and shows `tomorrow.md`.
+**In the morning you don't have to do anything.** The pause lifts by itself at the time you set. Your first message to Claude that day puts your files back exactly as you left them (the WIP commit is undone) and hands Claude `tomorrow.md` as context, so it already knows where you left off.
+
+`/shutdown:morning` does the same thing on demand: it lifts the pause early, with no questions, and shows you `tomorrow.md`.
 
 Real output from the demo repo (`npm run demo:reset`):
 
 ```
-Your work is saved (WIP commit c2934c8, not pushed).
+Your work is saved on this computer (commit c2934c8). Nothing more is needed tonight.
 Tomorrow's list is in <your project>/tomorrow.md
 You shut down for the day. Back at 08:00.
 ```
@@ -114,7 +122,7 @@ The pause is a small file in `~/.claude/shutdown/`, so it covers every project, 
 ```
 npm test
 ```
-Runs the full shutdown → refused → morning cycle on a real throwaway git repo in your temp folder (with its own pause file, so your real settings are never touched). It checks the WIP commit and `tomorrow.md`, that prompts and tools are refused, that `/morning` always gets through and restores the exact working tree, that the pause lifts itself, that a Friday shutdown lasts until Monday, that Claude's next steps are capped at 3, and edge cases: not a git repo, a bad time, shutting down twice, and unreadable hook input. A second file checks the plugin wiring: the manifests, both slash commands, and the exact hook commands from `hooks/hooks.json`, run the way Claude Code runs them.
+Runs the full shutdown → refused → morning cycle on a real throwaway git repo in your temp folder (with its own pause file, so your real settings are never touched). It checks the WIP commit and `tomorrow.md`, that prompts and tools are refused, that `/morning` always gets through and restores the exact working tree, that the pause lifts itself and the first prompt of the morning restores the work and hands Claude the list, that a Friday shutdown lasts until Monday, that Claude's next steps are capped at 3, and edge cases: not a git repo, a bad time, shutting down twice (with new work in between), and unreadable hook input. A second file checks the plugin wiring: the manifests, both slash commands, and the exact hook commands from `hooks/hooks.json`, run the way Claude Code runs them.
 
 The tests run on every push on Windows, macOS and Linux, with Node 18 and 22 (see the badge above).
 
