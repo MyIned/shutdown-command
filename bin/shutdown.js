@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Shutdown: ends the working day. Zero dependencies, Node 18+.
 //   node shutdown.js shutdown [--until HH:MM] [--steps <file>]
+//   node shutdown.js morning
+//   node shutdown.js hook   (Claude Code hook events on stdin)
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -115,11 +117,63 @@ function shutdown(args) {
   console.log(lines.join('\n'));
 }
 
+// The pause, or null if there is none, it has run out, or the file is unreadable.
+// Failing open means a damaged file can never lock anyone out.
+function activePause() {
+  try {
+    const pause = JSON.parse(fs.readFileSync(pausePath(), 'utf8'));
+    return pause.until > now().getTime() ? pause : null;
+  } catch {
+    return null;
+  }
+}
+
+const MORNING_PROMPT = /^\s*\/(?:[\w-]+:)?morning\b/;
+const MORNING_COMMAND = /shutdown\.js["']?\s+morning\b/;
+
+// Reads a Claude Code hook event on stdin and, while paused, refuses it with one kind line.
+function hook() {
+  const pause = activePause();
+  if (!pause) return;
+  const event = JSON.parse(fs.readFileSync(0, 'utf8') || '{}');
+  const message = `You shut down for the day. Back at ${pause.at}.`;
+  if (event.hook_event_name === 'UserPromptSubmit' && !MORNING_PROMPT.test(event.prompt || '')) {
+    console.log(JSON.stringify({ decision: 'block', reason: message }));
+  } else if (event.hook_event_name === 'PreToolUse' && !MORNING_COMMAND.test(event.tool_input?.command || '')) {
+    console.log(JSON.stringify({
+      hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: message },
+    }));
+  }
+}
+
+// Lifts the pause (early is fine), puts the saved work back as it was and shows tomorrow's list.
+function morning() {
+  let pause = null;
+  try {
+    pause = JSON.parse(fs.readFileSync(pausePath(), 'utf8'));
+  } catch {
+    // no pause: still show the list below
+  }
+  if (pause?.wip) {
+    try {
+      if (git(pause.repo, 'rev-parse', 'HEAD').trim() === pause.wip) git(pause.repo, 'reset', '-q', 'HEAD~1');
+    } catch {
+      // leave the WIP commit in place; the work is safe either way
+    }
+  }
+  fs.rmSync(pausePath(), { force: true });
+  const list = pause?.tomorrow || path.join(process.cwd(), 'tomorrow.md');
+  console.log('Good morning.\n');
+  console.log(fs.existsSync(list) ? fs.readFileSync(list, 'utf8') : 'No list from yesterday. Start fresh.');
+}
+
 function main() {
   const [command, ...args] = process.argv.slice(2);
   try {
     if (command === 'shutdown') return shutdown(args);
-    console.error('Usage: shutdown.js shutdown [--until HH:MM] [--steps <file>]');
+    if (command === 'morning') return morning();
+    if (command === 'hook') return hook();
+    console.error('Usage: shutdown.js shutdown [--until HH:MM] [--steps <file>] | morning | hook');
     process.exitCode = 2;
   } catch (err) {
     console.error(`Shutdown could not finish: ${err.message}`);
