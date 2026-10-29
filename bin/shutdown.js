@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Shutdown: ends the working day. Zero dependencies, Node 18+.
-//   node shutdown.js shutdown [--until HH:MM] [--steps <file>]
+//   node shutdown.js shutdown [--until HH:MM] [--step "text"]... [--blocked "text"]...
 //   node shutdown.js morning
 //   node shutdown.js hook   (Claude Code hook events on stdin)
 const { execFileSync } = require('node:child_process');
@@ -24,6 +24,11 @@ function repoRoot(cwd) {
   } catch {
     return null;
   }
+}
+
+// Every value given for a repeatable flag, e.g. --step "a" --step "b".
+function options(args, name) {
+  return args.flatMap((a, i) => (a === name && args[i + 1] ? [args[i + 1]] : []));
 }
 
 function option(args, name) {
@@ -101,7 +106,7 @@ function excludeFromGit(root, name) {
 
 const bullets = (items) => items.map((i) => `- ${i}`).join('\n');
 
-function writeTomorrow(dir, isRepo, saved, when, stepsFile) {
+function writeTomorrow(dir, isRepo, saved, when, steps, blocked) {
   const label = { A: 'new', M: 'changed', D: 'deleted', R: 'renamed' };
   const inProgress = saved.files.map((line) => {
     const [status, ...rest] = line.split('\t');
@@ -110,7 +115,8 @@ function writeTomorrow(dir, isRepo, saved, when, stepsFile) {
   const sections = [`# Tomorrow\n\nSaved ${dateLabel(when)}. Nothing here is urgent; it is just where you left off.`];
   if (inProgress.length) sections.push(`## In progress\n${bullets(inProgress)}`);
   if (saved.notes.length) sections.push(`## Notes you left in the code\n${bullets(saved.notes)}`);
-  if (stepsFile) sections.push(`## Next steps\n${fs.readFileSync(stepsFile, 'utf8').trim()}`);
+  if (steps.length) sections.push(`## Next steps\n${bullets(steps.slice(0, 3))}`);
+  if (blocked.length) sections.push(`## Waiting on\n${bullets(blocked)}`);
   const commits = isRepo ? recentCommits(dir) : [];
   if (commits.length) sections.push(`## Recent work\n${bullets(commits)}`);
   const file = path.join(dir, 'tomorrow.md');
@@ -123,14 +129,14 @@ function shutdown(args) {
   const when = now();
   const hhmm = option(args, '--until') || DEFAULT_MORNING;
   const until = nextOccurrence(hhmm, when);
-  const stepsFile = option(args, '--steps');
-  if (stepsFile) fs.accessSync(stepsFile, fs.constants.R_OK); // fail before anything is saved
+  const steps = options(args, '--step');
+  const blocked = options(args, '--blocked');
 
   const root = repoRoot(cwd);
   const dir = root || cwd;
   const saved = root ? saveWork(root, when) : { base: null, wip: null, files: [], notes: [] };
   if (root) excludeFromGit(root, 'tomorrow.md');
-  const tomorrow = writeTomorrow(dir, Boolean(root), saved, when, stepsFile);
+  const tomorrow = writeTomorrow(dir, Boolean(root), saved, when, steps, blocked);
 
   fs.mkdirSync(homeDir(), { recursive: true });
   fs.writeFileSync(pausePath(), JSON.stringify({ until: until.getTime(), at: hhmm, repo: root, base: saved.base, wip: saved.wip, tomorrow }, null, 2));
@@ -204,7 +210,7 @@ function main() {
     if (command === 'shutdown') return shutdown(args);
     if (command === 'morning') return morning();
     if (command === 'hook') return hook();
-    console.error('Usage: shutdown.js shutdown [--until HH:MM] [--steps <file>] | morning | hook');
+    console.error('Usage: shutdown.js shutdown [--until HH:MM] [--step "text"]... [--blocked "text"]... | morning | hook');
     process.exitCode = 2;
   } catch (err) {
     console.error(`Shutdown could not finish: ${err.message}`);

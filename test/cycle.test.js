@@ -143,3 +143,13 @@ test('a hook that cannot read its event lets it through', () => {
   assert.equal(r.status, 0);
   assert.equal(r.stdout.trim(), '');
 });
+
+test('next steps and blocked items from Claude end up in tomorrow.md (max 3 steps)', () => {
+  const repo3 = makeDemoRepo(path.join(root, 'steps'));
+  const r = run(['shutdown', '--step', 'one', '--step', 'two', '--step', 'three', '--step', 'four', '--blocked', 'waiting on Sam'], { cwd: repo3 });
+  assert.equal(r.status, 0, r.stderr);
+  const tomorrow = fs.readFileSync(path.join(repo3, 'tomorrow.md'), 'utf8');
+  assert.match(tomorrow, /## Next steps\n- one\n- two\n- three\n/);
+  assert.doesNotMatch(tomorrow, /four/);
+  assert.match(tomorrow, /## Waiting on\n- waiting on Sam/);
+});

@@ -38,7 +38,7 @@ Next morning:
 
 ## What happens when you run it
 1. **Saves your work.** If the folder is a git repo with unsaved changes, they're stored in a local commit called `WIP: shutdown <date>`. It is never pushed anywhere. Folders that aren't git repos are left alone.
-2. **Writes `tomorrow.md`** in the folder: the files you had in progress, any `TODO`/`FIXME` notes you added, up to 3 next steps (and anything blocked) that Claude writes from your conversation, and your recent work. `tomorrow.md` is kept out of git for you.
+2. **Writes `tomorrow.md`** in the folder: the files you had in progress, any `TODO`/`FIXME` notes you added, up to 3 next steps (and anything you are waiting on) that Claude writes from your conversation, and your recent work. `tomorrow.md` is kept out of git for you.
 3. **Pauses Claude Code until morning.** New requests get one line, and tool calls from agents that are still running are stopped:
 
    > You shut down for the day. Back at 08:00.

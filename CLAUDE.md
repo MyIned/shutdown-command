@@ -22,7 +22,7 @@ Consequence: everything must work with one slash command, make no git decisions 
 - **The pause is global** (`~/.claude/shutdown/pause.json`, override with `SHUTDOWN_HOME`), because the hook must stop Claude in every project, not just one.
 - **Two hooks, one script.** `UserPromptSubmit` blocks the prompt with the kind line before the model is called (the polite refusal the user sees); `PreToolUse` stops agents/subagents that are already running.
 - **It's a boundary, not a lock.** `/morning` always works, even early, with no scolding and no "are you sure?". The hook lets `/morning` and the script's `morning` command through. The pause also lifts itself at the morning time, so nobody has to remember anything.
-- **tomorrow.md is built from git facts by the script** (files in progress, recent commits), and enriched by Claude with "next 3 steps" and "blocked" from the session via `--steps <file>`. Max 3 steps, no time estimates, no priorities: a list that shrinks the morning, not one that grows it. `tomorrow.md` is excluded locally via `.git/info/exclude` so it never lands in a commit.
+- **tomorrow.md is built from git facts by the script** (files in progress, recent commits), and enriched by Claude with "next 3 steps" and "blocked" from the session via `--step "..."` / `--blocked "..."` on the command line (no temp file, so no extra permission prompt). Max 3 steps, no time estimates, no priorities: a list that shrinks the morning, not one that grows it. `tomorrow.md` is excluded locally via `.git/info/exclude` so it never lands in a commit.
 - **Cut:** anything that nags (reminders, "you've worked N hours", scheduled alerts), anything that scores or ranks the day, multi-repo scanning, config files, accounts.
 
 ## Out of scope tonight
