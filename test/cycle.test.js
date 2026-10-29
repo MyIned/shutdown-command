@@ -144,6 +144,14 @@ test('a hook that cannot read its event lets it through', () => {
   assert.equal(r.stdout.trim(), '');
 });
 
+test('a Friday shutdown keeps the weekend free and lifts on Monday', () => {
+  const friday = makeDemoRepo(path.join(root, 'friday'));
+  const r = run(['shutdown'], { cwd: friday, now: '2026-10-30T17:30:00' });
+  assert.match(r.stdout, /You shut down for the weekend\. Back on Monday at 08:00\./);
+  assert.match(hook(prompt('quick fix'), '2026-11-01T10:00:00').reason, /Back on Monday at 08:00/);
+  assert.equal(hook(prompt('good morning'), '2026-11-02T08:01:00'), null);
+});
+
 test('next steps and blocked items from Claude end up in tomorrow.md (max 3 steps)', () => {
   const repo3 = makeDemoRepo(path.join(root, 'steps'));
   const r = run(['shutdown', '--step', 'one', '--step', 'two', '--step', 'three', '--step', 'four', '--blocked', 'waiting on Sam'], { cwd: repo3 });

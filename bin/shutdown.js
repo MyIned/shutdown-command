@@ -39,14 +39,22 @@ function option(args, name) {
 const pad = (n) => String(n).padStart(2, '0');
 const dateLabel = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
-// The next time the clock reads HH:MM, strictly after `from`.
-function nextOccurrence(hhmm, from) {
+const isWeekend = (d) => d.getDay() === 0 || d.getDay() === 6;
+
+// The next weekday morning the clock reads HH:MM, strictly after `from`.
+// Shutting down on a Friday keeps the weekend free: the pause runs until Monday.
+function nextMorning(hhmm, from) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
   if (!m || +m[1] > 23 || +m[2] > 59) throw new Error(`"${hhmm}" is not a time like 08:00`);
   const t = new Date(from);
   t.setHours(+m[1], +m[2], 0, 0);
   if (t <= from) t.setDate(t.getDate() + 1);
-  return t;
+  const weekend = isWeekend(t);
+  while (isWeekend(t)) t.setDate(t.getDate() + 1);
+  const message = weekend
+    ? `You shut down for the weekend. Back on Monday at ${hhmm}.`
+    : `You shut down for the day. Back at ${hhmm}.`;
+  return { until: t, message };
 }
 
 function readPause() {
@@ -128,7 +136,7 @@ function shutdown(args) {
   const cwd = process.cwd();
   const when = now();
   const hhmm = option(args, '--until') || DEFAULT_MORNING;
-  const until = nextOccurrence(hhmm, when);
+  const { until, message } = nextMorning(hhmm, when);
   const steps = options(args, '--step');
   const blocked = options(args, '--blocked');
 
@@ -139,13 +147,13 @@ function shutdown(args) {
   const tomorrow = writeTomorrow(dir, Boolean(root), saved, when, steps, blocked);
 
   fs.mkdirSync(homeDir(), { recursive: true });
-  fs.writeFileSync(pausePath(), JSON.stringify({ until: until.getTime(), at: hhmm, repo: root, base: saved.base, wip: saved.wip, tomorrow }, null, 2));
+  fs.writeFileSync(pausePath(), JSON.stringify({ until: until.getTime(), message, repo: root, base: saved.base, wip: saved.wip, tomorrow }, null, 2));
 
   const lines = [];
   if (saved.wip) lines.push(`Your work is saved (WIP commit ${saved.wip.slice(0, 7)}, not pushed).`);
   else if (root) lines.push('Nothing to save; your work was already committed.');
   else lines.push('This folder is not a git repo, so nothing was committed.');
-  lines.push(`Tomorrow's list is in ${tomorrow}`, `You shut down for the day. Back at ${hhmm}.`);
+  lines.push(`Tomorrow's list is in ${tomorrow}`, message);
   console.log(lines.join('\n'));
 }
 
@@ -173,7 +181,7 @@ function hook() {
   } catch {
     return; // unreadable event: let it through rather than block
   }
-  const message = `You shut down for the day. Back at ${pause.at}.`;
+  const { message } = pause;
   if (event.hook_event_name === 'UserPromptSubmit' && !MORNING_PROMPT.test(event.prompt || '')) {
     console.log(JSON.stringify({ decision: 'block', reason: message }));
   } else if (event.hook_event_name === 'PreToolUse' && !MORNING_COMMAND.test(event.tool_input?.command || '')) {

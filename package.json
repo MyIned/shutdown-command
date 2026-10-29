@@ -5,7 +5,7 @@
   "license": "MIT",
   "engines": { "node": ">=18" },
   "scripts": {
-    "test": "node --test test/cycle.test.js",
+    "test": "node --test test/cycle.test.js test/plugin.test.js",
     "demo:reset": "node test/demo-repo.js scratch/demo-repo"
   }
 }
