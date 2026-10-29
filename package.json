@@ -2,8 +2,24 @@
   "name": "shutdown-command",
   "version": "0.1.0",
   "description": "One command that ends your Claude Code working day: saves your work, writes tomorrow's list and pauses your agents until morning.",
+  "keywords": [
+    "claude-code",
+    "plugin",
+    "burnout",
+    "shutdown",
+    "wellbeing"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MyIned/shutdown-command.git"
+  },
+  "homepage": "https://github.com/MyIned/shutdown-command#readme",
+  "author": "Dominic Higgins",
   "license": "MIT",
-  "engines": { "node": ">=18" },
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "test": "node --test test/cycle.test.js test/plugin.test.js",
     "demo:reset": "node test/demo-repo.js scratch/demo-repo"

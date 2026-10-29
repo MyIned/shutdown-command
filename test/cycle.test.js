@@ -129,6 +129,16 @@ test('a time that is not a time changes nothing', () => {
   assert.deepEqual(git(repo2, 'status', '--porcelain').split('\n').filter(Boolean).length, 2, 'work left untouched');
 });
 
+test('morning times can be written the way people write them', () => {
+  const times = { '7am': '07:00', '7:30 am': '07:30', '7.30': '07:30', '8': '08:00', '12am': '00:00', '9:05': '09:05' };
+  for (const [input, expected] of Object.entries(times)) {
+    const dir = makeDemoRepo(path.join(root, `time-${expected.replace(':', '')}-${Object.keys(times).indexOf(input)}`));
+    const r = run(['shutdown', '--until', input], { cwd: dir });
+    assert.equal(r.status, 0, `${input}: ${r.stderr}`);
+    assert.match(r.stdout, new RegExp(`Back at ${expected}\\.`), input);
+  }
+});
+
 test('shutting down twice still lets /morning restore everything', () => {
   fs.rmSync(path.join(home, 'pause.json'), { force: true });
   const twice = makeDemoRepo(path.join(root, 'twice'));

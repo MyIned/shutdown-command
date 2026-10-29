@@ -41,13 +41,25 @@ const dateLabel = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.ge
 
 const isWeekend = (d) => d.getDay() === 0 || d.getDay() === 6;
 
+// Accepts the ways people write a time: 08:00, 8, 7.30, 7am, 7:30 am.
+function parseTime(input) {
+  const m = /^(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?$/i.exec(String(input).trim());
+  let hours = m ? +m[1] : NaN;
+  const minutes = m && m[2] ? +m[2] : 0;
+  const half = m && m[3] ? m[3].toLowerCase() : null;
+  if (half && (hours < 1 || hours > 12)) hours = NaN;
+  if (half === 'pm' && hours < 12) hours += 12;
+  if (half === 'am' && hours === 12) hours = 0;
+  if (!(hours >= 0 && hours <= 23 && minutes <= 59)) throw new Error(`"${input}" is not a time like 08:00 or 7am`);
+  return { hours, minutes, hhmm: `${pad(hours)}:${pad(minutes)}` };
+}
+
 // The next weekday morning the clock reads HH:MM, strictly after `from`.
 // Shutting down on a Friday keeps the weekend free: the pause runs until Monday.
-function nextMorning(hhmm, from) {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
-  if (!m || +m[1] > 23 || +m[2] > 59) throw new Error(`"${hhmm}" is not a time like 08:00`);
+function nextMorning(input, from) {
+  const { hours, minutes, hhmm } = parseTime(input);
   const t = new Date(from);
-  t.setHours(+m[1], +m[2], 0, 0);
+  t.setHours(hours, minutes, 0, 0);
   if (t <= from) t.setDate(t.getDate() + 1);
   const weekend = isWeekend(t);
   while (isWeekend(t)) t.setDate(t.getDate() + 1);

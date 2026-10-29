@@ -11,9 +11,9 @@ Someone who uses Claude Code every day to get real work done and can't find the 
 Consequence: everything must work with one slash command, make no git decisions for them, and degrade gracefully when the folder isn't a git repo.
 
 ## What the demo must show
-1. Mid-task in a repo with uncommitted changes, run `/shutdown`. Show the saved WIP commit (clean `git status`) and the generated `tomorrow.md`.
+1. Mid-task in a repo with uncommitted changes, run `/shutdown:shutdown`. Show the saved WIP commit (clean `git status`) and the generated `tomorrow.md`.
 2. Try to start Claude Code again. It is politely refused with one kind line ("You shut down for the day. Back at 08:00.") and nothing runs.
-3. `/morning` lifts the pause, puts the changes back exactly as they were and shows `tomorrow.md`. Then the 30-second "how someone uses this tomorrow": install from the public repo, run `/shutdown` at the end of a day.
+3. `/shutdown:morning` lifts the pause, puts the changes back exactly as they were and shows `tomorrow.md`. Then the 30-second "how someone uses this tomorrow": install from the public repo, run `/shutdown` at the end of a day.
 
 ## Design decisions (challenging the starting sketch)
 - **Current folder only.** Scanning "each repo with changes" is unbounded and risky. We save the repo Claude Code was opened in.
@@ -21,7 +21,7 @@ Consequence: everything must work with one slash command, make no git decisions 
 - **Not a git repo?** Skip the commit, still write `tomorrow.md` and pause.
 - **The pause is global** (`~/.claude/shutdown/pause.json`, override with `SHUTDOWN_HOME`), because the hook must stop Claude in every project, not just one.
 - **Two hooks, one script.** `UserPromptSubmit` blocks the prompt with the kind line before the model is called (the polite refusal the user sees); `PreToolUse` stops agents/subagents that are already running.
-- **It's a boundary, not a lock.** `/morning` always works, even early, with no scolding and no "are you sure?". The hook lets `/morning` and the script's `morning` command through. The pause also lifts itself at the morning time (Monday if it is the weekend), and the first prompt after that does the morning restore and hands Claude `tomorrow.md` as context, so nobody has to remember anything.
+- **It's a boundary, not a lock.** `/shutdown:morning` always works, even early, with no scolding and no "are you sure?". The hook lets `/morning` and the script's `morning` command through. The pause also lifts itself at the morning time (Monday if it is the weekend), and the first prompt after that does the morning restore and hands Claude `tomorrow.md` as context, so nobody has to remember anything.
 - **tomorrow.md is built from git facts by the script** (files in progress, recent commits), and enriched by Claude with "next 3 steps" and "blocked" from the session via `--step "..."` / `--blocked "..."` on the command line (no temp file, so no extra permission prompt). Max 3 steps, no time estimates, no priorities: a list that shrinks the morning, not one that grows it. `tomorrow.md` is excluded locally via `.git/info/exclude` so it never lands in a commit.
 - **Cut:** anything that nags (reminders, "you've worked N hours", scheduled alerts), anything that scores or ranks the day, multi-repo scanning, config files, accounts.
 

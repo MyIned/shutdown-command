@@ -54,7 +54,7 @@ At the end of your day, in Claude Code:
 ```
 /shutdown:shutdown
 ```
-Want a different morning time? `/shutdown:shutdown 07:30`. The default is 08:00. On a Friday (or at the weekend) the pause runs until Monday at that time.
+Want a different morning time? `/shutdown:shutdown 07:30` (or `7am`, `7.30`). The default is 08:00. On a Friday (or at the weekend) the pause runs until Monday at that time.
 
 Next morning there is nothing to do: just start working. Your first message puts everything back. Want to start early, or see the list first?
 ```
@@ -134,7 +134,7 @@ The pause is a small file in `~/.claude/shutdown/`, so it covers every project, 
 ```
 npm test
 ```
-Runs the full shutdown → refused → morning cycle on a real throwaway git repo in your temp folder (with its own pause file, so your real settings are never touched). It checks the WIP commit and `tomorrow.md`, that prompts and tools are refused, that `/morning` always gets through and restores the exact working tree, that the pause lifts itself and the first prompt of the morning restores the work and hands Claude the list, that a Friday shutdown lasts until Monday, that Claude's next steps are capped at 3, and edge cases: not a git repo, a bad time, shutting down twice (with new work in between), and unreadable hook input. A second file checks the plugin wiring: the manifests, both slash commands, and the exact hook commands from `hooks/hooks.json`, run the way Claude Code runs them.
+Runs the full shutdown → refused → morning cycle on a real throwaway git repo in your temp folder (with its own pause file, so your real settings are never touched). It checks the WIP commit and `tomorrow.md`, that prompts and tools are refused, that `/morning` always gets through and restores the exact working tree, that the pause lifts itself and the first prompt of the morning restores the work and hands Claude the list, that a Friday shutdown lasts until Monday, that Claude's next steps are capped at 3, and edge cases: not a git repo, times written as `7am` or `7.30`, a bad time, shutting down twice (with new work in between), and unreadable hook input. A second file checks the plugin wiring: the manifests, both slash commands, and the exact hook commands from `hooks/hooks.json`, run the way Claude Code runs them.
 
 The tests run on every push on Windows, macOS and Linux, with Node 18 and 22 (see the badge above).
 
