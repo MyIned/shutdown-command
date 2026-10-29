@@ -17,11 +17,11 @@ Consequence: everything must work with one slash command, make no git decisions 
 
 ## Design decisions (challenging the starting sketch)
 - **Current folder only.** Scanning "each repo with changes" is unbounded and risky. We save the repo Claude Code was opened in.
-- **WIP commit, not stash.** Stashes are invisible and easy to lose; a visible commit "WIP: shutdown <date>" is proof the work is safe. `/morning` undoes it with `git reset HEAD~1` (only if HEAD is still that commit), so the user's tree is exactly as they left it and no WIP noise stays in history. **We never push, and never ask about pushing.**
+- **WIP commit, not stash.** Stashes are invisible and easy to lose; a visible commit "WIP: shutdown <date>" is proof the work is safe. `/morning` resets to the commit that was HEAD before the first shutdown (only if HEAD is still the WIP commit), so shutting down twice is undone too, so the user's tree is exactly as they left it and no WIP noise stays in history. **We never push, and never ask about pushing.**
 - **Not a git repo?** Skip the commit, still write `tomorrow.md` and pause.
 - **The pause is global** (`~/.claude/shutdown/pause.json`, override with `SHUTDOWN_HOME`), because the hook must stop Claude in every project, not just one.
 - **Two hooks, one script.** `UserPromptSubmit` blocks the prompt with the kind line before the model is called (the polite refusal the user sees); `PreToolUse` stops agents/subagents that are already running.
-- **It's a boundary, not a lock.** `/morning` always works, even early, with no scolding and no "are you sure?". The hook lets `/morning` and the script's `morning` command through. The pause also lifts itself at the morning time, so nobody has to remember anything.
+- **It's a boundary, not a lock.** `/morning` always works, even early, with no scolding and no "are you sure?". The hook lets `/morning` and the script's `morning` command through. The pause also lifts itself at the morning time (Monday if it is the weekend), and the first prompt after that does the morning restore and hands Claude `tomorrow.md` as context, so nobody has to remember anything.
 - **tomorrow.md is built from git facts by the script** (files in progress, recent commits), and enriched by Claude with "next 3 steps" and "blocked" from the session via `--step "..."` / `--blocked "..."` on the command line (no temp file, so no extra permission prompt). Max 3 steps, no time estimates, no priorities: a list that shrinks the morning, not one that grows it. `tomorrow.md` is excluded locally via `.git/info/exclude` so it never lands in a commit.
 - **Cut:** anything that nags (reminders, "you've worked N hours", scheduled alerts), anything that scores or ranks the day, multi-repo scanning, config files, accounts.
 
@@ -37,17 +37,14 @@ Consequence: everything must work with one slash command, make no git decisions 
 - One zero-dependency Node 18+ script, `bin/shutdown.js`, with subcommands `shutdown`, `morning`, `hook`. Cross-platform (Windows/macOS/Linux), git via `child_process`.
 - Tests: `node:test`, no dependencies.
 - Runs locally with one command: `npm test`. Demo scratch repo: `npm run demo:reset`.
-- Install for others (two lines, be honest in the README): `/plugin marketplace add <owner>/<repo>` then `/plugin install shutdown@<marketplace>`.
+- Install for others (one line, tested): `/plugin install shutdown --marketplace MyIned/shutdown-command`. The README also gives the two-step fallback.
 
-## Build plan (each milestone ends with something working; run `npm test` at each)
-| # | Budget | Done when | Tests going green |
-|---|--------|-----------|-------------------|
-| M0 | 17:20–17:40 | CLAUDE.md filled, harness in place, tests exist and fail for the right reason | none (red) |
-| M1 | +30 min | `node bin/shutdown.js shutdown` makes the WIP commit, writes `tomorrow.md`, writes the pause file | save |
-| M2 | +30 min | `hook` refuses prompts and tools while paused; `morning` lifts it and restores the tree. **Ugly end-to-end works, first commit + push by 18:15–18:30** | whole cycle |
-| M3 | +30 min | Plugin packaging; installed from the local folder into real Claude Code; do the demo path for real | (manual) |
-| M4 | +30 min | `commands/shutdown.md` has Claude write the next-3-steps file; non-git folder, expired pause, odd times handled | edge cases |
-| M5 | to 19:30 | README with real output, repo public, fresh-clone test, dead code removed. **Freeze at 19:30** | all green |
+## Build log
+All milestones done, each ending with `npm test` green:
+- M0: harness and plan. M1: save and pause. M2: hook and morning, full cycle passing.
+- M3: plugin packaging, tested in real Claude Code. M4: edge cases, README with real output.
+- M5: public repo, fresh-clone test, one-line install tested, CI on Windows/macOS/Linux.
+- After: weekend pause until Monday, automatic morning restore on the first prompt, plugin wiring test.
 
 ## How we're judged (build to this)
 An AI agent scores the build out of 100. It reads the repo's README and code, plus what we write in the submission form. It does NOT watch the demo, so anything that isn't in the README or code doesn't count.
@@ -68,7 +65,7 @@ So:
 - **Lifting a pause:** delete `~/.claude/shutdown/pause.json` (or `scratch/home/pause.json`). Do not install the hooks into real Claude Code until M3, and test M3 with a short pause (`--until` a couple of minutes ahead) so we can't lock ourselves out mid-build.
 
 ## Ground rules
-- Demo is at 20:00. Feature freeze at 19:30. Working beats impressive.
+- Submission closes at 20:30. Working beats impressive.
 - Keep it to the fewest files and dependencies that work.
 - Never hard-code API keys; read them from environment variables and keep `.env` out of git.
 - After each working step, say so, so we can commit.

@@ -183,9 +183,11 @@ function hook() {
   }
   const pause = activePause();
   if (!pause) {
-    if (event.hook_event_name === 'UserPromptSubmit' && readPause() && !MORNING_PROMPT.test(event.prompt || '')) {
+    const expired = readPause();
+    if (event.hook_event_name === 'UserPromptSubmit' && expired && !MORNING_PROMPT.test(event.prompt || '')) {
       const { list } = restore();
-      const context = `The user's working day has started. This is where they left off yesterday:\n\n${list}`;
+      const folder = expired.repo || path.dirname(expired.tomorrow || '');
+      const context = `The user's working day has started. Their work in ${folder} has been put back as they left it. This is where they left off (do not start on it unless they ask):\n\n${list}`;
       console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: context } }));
     }
     return;

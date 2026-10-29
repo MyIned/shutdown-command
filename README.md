@@ -9,6 +9,8 @@ Built at the Claude Code Impact Lab, Dublin (29 Oct 2026), for the brief **"Take
 ## The problem: compression burnout
 AI tools squeeze more work into every day, and agents never get tired, so the day never has a natural end. The cost is evenings lost to "just one more prompt", and mornings lost trying to remember what you were in the middle of.
 
+The brief came out of a public discussion where people, many of them not technical, described what AI is doing to their jobs and their evenings. The answer most tools give is to help you do more. Shutdown does the opposite: it gives the day an end.
+
 ## Who it's for
 Someone who uses Claude Code daily to get real work done and has no clear stopping point. That could be a freelancer, a small-business owner, a charity volunteer or a hobbyist, not only a professional developer. You don't need to know git or what a hook is.
 
@@ -29,7 +31,7 @@ The brief's one rule is that a build has to give people time back, not help them
 | Pausing | Reminders, countdowns, "are you sure?" | One kind line, then silence. No notifications of any kind |
 | The weekend | A Friday pause that lifts on Saturday morning | Lifts on Monday |
 | Getting out early | Scolding, or a lock you have to fight | `/shutdown:morning` always works with no questions. It's a boundary, not a punishment |
-| Morning | A dashboard or stats about yesterday | Your files back as you left them, plus the short list. Nothing else |
+| Morning | A dashboard or stats about yesterday, or an agent that starts on the list by itself | Your files back as you left them, plus the short list. Claude is told not to start on it unless you ask |
 
 Things we deliberately didn't build: automatic shutdown at a set time, "hours worked" stats, streaks, reminders.
 
@@ -54,10 +56,20 @@ At the end of your day, in Claude Code:
 ```
 Want a different morning time? `/shutdown:shutdown 07:30`. The default is 08:00. On a Friday (or at the weekend) the pause runs until Monday at that time.
 
-Next morning:
+Next morning there is nothing to do: just start working. Your first message puts everything back. Want to start early, or see the list first?
 ```
 /shutdown:morning
 ```
+
+### Try it in two minutes without installing
+```
+git clone https://github.com/MyIned/shutdown-command
+cd shutdown-command
+npm run demo:reset
+cd scratch/demo-repo
+claude --plugin-dir ../..
+```
+This opens Claude Code in a small demo project with unsaved work, with Shutdown loaded only for this session. Run `/shutdown:shutdown`, then type anything to see the pause, then `/shutdown:morning` to get everything back.
 
 ## What happens when you run it
 1. **Saves your work.** If the folder is a git repo with unsaved changes, they're stored in a local commit called `WIP: shutdown <date>`. It is never pushed anywhere. Folders that aren't git repos are left alone.
@@ -133,7 +145,7 @@ To try it by hand: `npm run demo:reset` builds a demo repo with unsaved changes 
 - The pause is a boundary, not a lock: anyone can run `/shutdown:morning`, and you can edit your own files by hand while paused. That's deliberate.
 - It stops Claude Code, not other tools or other people's machines.
 - If you make new commits after shutting down, `/shutdown:morning` leaves the WIP commit in place and tells you.
-- The next steps depend on Claude having context from your session; if it has none it says so rather than inventing work.
+- The next steps depend on Claude having context from your session; if it has none, it writes no steps rather than inventing work.
 
 ## Team
 Dominic Higgins
