@@ -60,6 +60,7 @@ test('/shutdown saves the work, writes tomorrow.md and pauses', () => {
   const tomorrow = fs.readFileSync(path.join(repo, 'tomorrow.md'), 'utf8');
   assert.match(tomorrow, /app\.js/);
   assert.match(tomorrow, /reminders\.js/);
+  assert.match(tomorrow, /TODO: mark notes/, 'notes left in the code are carried over');
   assert.ok(fs.existsSync(path.join(home, 'pause.json')), 'pause file should exist');
   assert.match(r.stdout, /Back at 08:00/);
 });
@@ -113,4 +114,32 @@ test('a folder that is not a git repo still gets tomorrow.md and a pause', () =>
   assert.equal(r.status, 0, r.stderr);
   assert.ok(fs.existsSync(path.join(plain, 'tomorrow.md')));
   assert.equal(hook(prompt('hello')).decision, 'block');
+});
+
+test('a time that is not a time changes nothing', () => {
+  const repo2 = makeDemoRepo(path.join(root, 'bad-time'));
+  const r = run(['shutdown', '--until', '25:99'], { cwd: repo2 });
+  assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /not a time/);
+  assert.deepEqual(git(repo2, 'status', '--porcelain').split('\n').filter(Boolean).length, 2, 'work left untouched');
+});
+
+test('shutting down twice still lets /morning restore everything', () => {
+  fs.rmSync(path.join(home, 'pause.json'), { force: true });
+  const twice = makeDemoRepo(path.join(root, 'twice'));
+  const count = () => Number(git(twice, 'rev-list', '--count', 'HEAD').trim());
+  const before = count();
+  run(['shutdown', '--until', '08:00'], { cwd: twice });
+  run(['shutdown', '--until', '08:00'], { cwd: twice });
+  assert.match(fs.readFileSync(path.join(twice, 'tomorrow.md'), 'utf8'), /reminders\.js/, 'list survives the second run');
+  run(['morning'], { cwd: twice });
+  assert.equal(count(), before);
+  assert.equal(git(twice, 'status', '--porcelain').split('\n').filter(Boolean).length, 2);
+});
+
+test('a hook that cannot read its event lets it through', () => {
+  run(['shutdown', '--until', '08:00']);
+  const r = run(['hook'], { input: 'not json' });
+  assert.equal(r.status, 0);
+  assert.equal(r.stdout.trim(), '');
 });

@@ -44,18 +44,43 @@ function nextOccurrence(hhmm, from) {
   return t;
 }
 
+function readPause() {
+  try {
+    return JSON.parse(fs.readFileSync(pausePath(), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+const head = (root) => {
+  try {
+    return git(root, 'rev-parse', 'HEAD').trim();
+  } catch {
+    return null; // a repo with no commits yet
+  }
+};
+
 // Saves uncommitted work as a local WIP commit. Never pushes.
+// `base` is the commit to return to on /morning. Shutting down twice in a row keeps the first one.
 function saveWork(root, when) {
-  if (!git(root, 'status', '--porcelain').trim()) return { commit: null, files: [], notes: [] };
-  git(root, 'add', '-A');
-  const files = git(root, 'diff', '--cached', '--name-status').trim().split('\n').filter(Boolean);
-  const notes = git(root, 'diff', '--cached', '-U0')
+  const previous = readPause();
+  const resumed = previous?.wip && previous.repo === root && previous.wip === head(root);
+  let base = resumed ? previous.base : head(root);
+  let wip = resumed ? previous.wip : null;
+  if (git(root, 'status', '--porcelain').trim()) {
+    git(root, 'add', '-A');
+    const identity = git(root, 'config', 'user.email').trim() ? [] : ['-c', 'user.name=Shutdown', '-c', 'user.email=shutdown@localhost'];
+    git(root, ...identity, 'commit', '--no-verify', '-q', '-m', `WIP: shutdown ${dateLabel(when)}`);
+    wip = head(root);
+  }
+  if (!wip) return { base, wip, files: [], notes: [] };
+  const range = base ? [base, wip] : ['--root', wip];
+  const files = git(root, 'diff-tree', '-r', '--name-status', ...range).trim().split('\n').filter(Boolean);
+  const notes = git(root, 'diff-tree', '-r', '-p', '-U0', ...range)
     .split('\n')
     .filter((l) => l.startsWith('+') && !l.startsWith('+++') && /\b(TODO|FIXME)\b/.test(l))
     .map((l) => l.slice(1).trim());
-  const identity = git(root, 'config', 'user.email').trim() ? [] : ['-c', 'user.name=Shutdown', '-c', 'user.email=shutdown@localhost'];
-  git(root, ...identity, 'commit', '--no-verify', '-q', '-m', `WIP: shutdown ${dateLabel(when)}`);
-  return { commit: git(root, 'rev-parse', 'HEAD').trim(), files, notes };
+  return { base, wip, files, notes };
 }
 
 function recentCommits(root) {
@@ -99,18 +124,19 @@ function shutdown(args) {
   const hhmm = option(args, '--until') || DEFAULT_MORNING;
   const until = nextOccurrence(hhmm, when);
   const stepsFile = option(args, '--steps');
+  if (stepsFile) fs.accessSync(stepsFile, fs.constants.R_OK); // fail before anything is saved
 
   const root = repoRoot(cwd);
   const dir = root || cwd;
-  const saved = root ? saveWork(root, when) : { commit: null, files: [], notes: [] };
+  const saved = root ? saveWork(root, when) : { base: null, wip: null, files: [], notes: [] };
   if (root) excludeFromGit(root, 'tomorrow.md');
   const tomorrow = writeTomorrow(dir, Boolean(root), saved, when, stepsFile);
 
   fs.mkdirSync(homeDir(), { recursive: true });
-  fs.writeFileSync(pausePath(), JSON.stringify({ until: until.getTime(), at: hhmm, repo: root, wip: saved.commit, tomorrow }, null, 2));
+  fs.writeFileSync(pausePath(), JSON.stringify({ until: until.getTime(), at: hhmm, repo: root, base: saved.base, wip: saved.wip, tomorrow }, null, 2));
 
   const lines = [];
-  if (saved.commit) lines.push(`Your work is saved (WIP commit ${saved.commit.slice(0, 7)}, not pushed).`);
+  if (saved.wip) lines.push(`Your work is saved (WIP commit ${saved.wip.slice(0, 7)}, not pushed).`);
   else if (root) lines.push('Nothing to save; your work was already committed.');
   else lines.push('This folder is not a git repo, so nothing was committed.');
   lines.push(`Tomorrow's list is in ${tomorrow}`, `You shut down for the day. Back at ${hhmm}.`);
@@ -135,7 +161,12 @@ const MORNING_COMMAND = /shutdown\.js["']?\s+morning\b/;
 function hook() {
   const pause = activePause();
   if (!pause) return;
-  const event = JSON.parse(fs.readFileSync(0, 'utf8') || '{}');
+  let event;
+  try {
+    event = JSON.parse(fs.readFileSync(0, 'utf8'));
+  } catch {
+    return; // unreadable event: let it through rather than block
+  }
   const message = `You shut down for the day. Back at ${pause.at}.`;
   if (event.hook_event_name === 'UserPromptSubmit' && !MORNING_PROMPT.test(event.prompt || '')) {
     console.log(JSON.stringify({ decision: 'block', reason: message }));
