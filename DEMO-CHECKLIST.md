@@ -25,7 +25,24 @@
 - [ ] Fallback recording ready to play
 - [ ] Repo link on a slide/tab to show at the end
 
-## Judging criteria — check against each
-- [ ] Takes a direct swing at the problem picked
-- [ ] Actually works live
-- [ ] Someone could realistically pick it up and use it after tonight
+## Submission (this is what gets scored)
+An agent scores the repo README, the code and the form text. Do these before 20:00:
+- [ ] Repo is **public** on GitHub and the link opens when you're logged out
+- [ ] README follows the template: problem, who it's for, the idea it fits, how it gives time back, quick start, tests
+- [ ] Clone the repo into a fresh folder and follow the README exactly. Does it work?
+- [ ] `npm test` passes on the final commit
+- [ ] No stubs, TODOs, mock data or dead files left in the code
+- [ ] Form text drafted (below), reusing the README's wording
+
+## Form draft
+- **Problem / brief:** Take the load off — A shutdown command
+- **Who it's for:**
+- **What it does (2 sentences):**
+- **How it gives time back:**
+- **Repo link:**
+
+## Scoring checklist (out of 100)
+- [ ] **30 — Takes on the problem:** compression burnout, who it's for, fits "A shutdown command"
+- [ ] **30 — It actually works:** repo runs, main thing works end to end, nothing faked
+- [ ] **20 — Someone would use it:** stranger can start from the README, useful after tonight, works without us
+- [ ] **20 — Gives time back:** saves time/attention, adds no work/alerts/prompts, time goes back to people
